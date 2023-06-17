@@ -1,0 +1,98 @@
+version: '3.3'
+services:
+  mdb:
+    image: mariadb
+    container_name: MariaDB
+    networks:
+      mynet:
+        ipv4_address: 172.18.0.8
+    environment:
+      - TZ=&quot;Asia/Shanghai&quot;
+#      - MARIADB_RANDOM_ROOT_PASSWORD=Yes
+      - MARIADB_ROOT_PASSWORD=12345678
+      - MARIADB_DATABASE=lychee
+      - MARIADB_USER=lychee
+      - MARIADB_PASSWORD=12345678
+    ports:
+      - '3306:3306'
+    volumes:
+      - '/mnt/user/appdata/mariadb-official/data:/var/lib/mysql'
+    restart: unless-stopped
+
+  redis:
+    image: redis
+    container_name: Redis
+    privileged: true  # 启动特权模式
+    networks:
+      mynet:
+#       ipv4_address: 172.18.0.9
+    environment:
+      - TZ=Asia/Shanghai
+    ports:
+      - '6379:6379/tcp'
+    volumes:
+      - /mnt/user/appdata/redis/etc/redis.conf:/etc/redis.conf
+      - /mnt/user/appdata/redis/data:/data
+    command:          # 多个命令同时执行
+      - /bin/bash 
+      - -c 
+      - |                 
+        echo 551 > /proc/sys/net/core/somaxconn
+        redis-server /etc/redis.conf
+
+  lychee:
+    image: 'linuxserver/lychee:latest'
+    container_name: lychee
+    networks:
+          mynet:
+            ipv4_address: 172.18.0.10
+    ports:
+       - '8091:80/tcp'
+    volumes:
+      - /mnt/user/appdata/lychee/config:/config
+      - /mnt/user/appdata/lychee/uploads:/uploads
+      - /mnt/user/appdata/lychee/Pictures:/pictures
+    environment:
+      - PUID=99
+      - PGID=100
+      # PHP timezone e.g. PHP_TZ=America/New_York
+      - PHP_TZ=Asia/Shanghai
+      - TIMEZONE=Asia/Shanghai
+      - UMASK=022
+      #- APP_NAME=Laravel
+      #- APP_ENV=local
+      #- APP_FORCE_HTTPS=false
+      #- APP_DEBUG=true
+      #- APP_URL=http://localhost
+      - DB_CONNECTION=mysql
+      - DB_HOST=mdb
+      - DB_PORT=3306
+      - DB_DATABASE=lychee
+      - DB_USERNAME=lychee
+      - DB_PASSWORD=12345678
+      #- DB_PASSWORD_FILE=<filename>
+      #- DB_OLD_LYCHEE_PREFIX=''
+      #- CACHE_DRIVER=file
+      #- SESSION_DRIVER=file
+      #- SESSION_LIFETIME=120
+      #- SECURITY_HEADER_HSTS_ENABLE=false
+      - REDIS_HOST=redis
+      - REDIS_PASSWORD=null
+      #- REDIS_PASSWORD_FILE=<filename>
+      - REDIS_PORT=6379
+      #- MAIL_DRIVER=smtp
+      #- MAIL_HOST=smtp.mailtrap.io
+      #- MAIL_PORT=2525
+      #- MAIL_USERNAME=null
+      #- MAIL_PASSWORD=null
+      #- MAIL_PASSWORD_FILE=<filename>
+      #- MAIL_ENCRYPTION=null
+      - STARTUP_DELAY=30
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - mdb
+
+networks:
+  mynet:
+    external: true
